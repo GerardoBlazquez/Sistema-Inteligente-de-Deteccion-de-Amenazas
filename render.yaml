@@ -1,11 +1,11 @@
-
 services:
   - type: web
     name: tu-app-python
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install --upgrade pip setuptools wheel build
+      pip install --only-binary=all pandas==2.1.4
+      pip install -r requirements.txt --no-deps
     envVars:
-      - key: DATABASE_URL
-        sync: false  # Render pedirá el valor en dashboard
-      - key: PIP_NO_CACHE_DIR
-        value: "1"
+      - key: PIP_NO_BINARY_PANDAS
+        value: "0"
