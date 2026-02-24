@@ -1,0 +1,11 @@
+
+services:
+  - type: web
+    name: tu-app-python
+    env: python
+    buildCommand: pip install -r requirements.txt
+    envVars:
+      - key: DATABASE_URL
+        sync: false  # Render pedirá el valor en dashboard
+      - key: PIP_NO_CACHE_DIR
+        value: "1"
