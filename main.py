@@ -4,8 +4,19 @@ import numpy as np
 from registry import MODEL_REGISTRY
 from prometheus_client import Counter, Histogram, generate_latest
 from fastapi.responses import Response
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware  # ← AGREGAR ESTA LÍNEA
+from pydantic import BaseModel
 
 app = FastAPI(title="Threat Detection API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:4321", "http://127.0.0.1:4321", "*"],  # ← LOCAL + PROD
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 REQUEST_COUNT = Counter(
     "prediction_requests_total",
