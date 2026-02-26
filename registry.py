@@ -12,7 +12,10 @@ FRAUD_FEATURES = [
 ]
 
 BOT_FEATURES = [
-    "requests_per_ip", "avg_time_diff", "error_rate", "unique_resources"
+    "requests_per_ip", 
+    "avg_time_diff", 
+    "error_rate", 
+    "unique_resources"
 ]
 
 def load_model_safely(model_path):
@@ -23,16 +26,48 @@ def load_model_safely(model_path):
     return None
 
 MODEL_REGISTRY = {
+
     "fraud": {
+
         "random_forest": {
             "model": load_model_safely(os.path.join(BASE_DIR, "models", "fraud", "fraud_random_forest.pkl")),
             "scaler": load_model_safely(os.path.join(BASE_DIR, "models", "fraud", "fraud_scaler.pkl")),
             "features": FRAUD_FEATURES,
             "threshold_f1": 0.37,
             "threshold_cost": 0.15
+        },
+
+        "isolation_forest": {
+            "model": load_model_safely(os.path.join(BASE_DIR, "models", "fraud", "fraud_isolation_forest.pkl")),
+            "features": FRAUD_FEATURES,
+            "threshold_f1": 0.0,
+            "threshold_cost": 0.0
+        },
+
+        "lof": {
+            "model": load_model_safely(os.path.join(BASE_DIR, "models", "fraud", "fraud_lof.pkl")),
+            "features": FRAUD_FEATURES,
+            "threshold_f1": 0.0,
+            "threshold_cost": 0.0
+        },
+
+        "ocsvm": {
+            "model": load_model_safely(os.path.join(BASE_DIR, "models", "fraud", "fraud_ocsvm.pkl")),
+            "features": FRAUD_FEATURES,
+            "threshold_f1": 0.0,
+            "threshold_cost": 0.0
         }
     },
-    "bot": {
+
+    "bots": {  # 🔥 CORREGIDO (antes era "bot")
+
+        "random_forest": {
+            "model": load_model_safely(os.path.join(BASE_DIR, "models", "bots", "random_forest.pkl")),
+            "features": BOT_FEATURES,
+            "threshold_f1": 0.41,
+            "threshold_cost": 0.08
+        },
+
         "xgboost": {
             "model": load_model_safely(os.path.join(BASE_DIR, "models", "bots", "xgboost.pkl")),
             "features": BOT_FEATURES,
