@@ -79,14 +79,20 @@ def health():
 @app.get("/models")
 def list_models():
 
-    return {
-        domain: {
-            model_name: True
-            for model_name, model_info in models.items()
-            if model_info.get("model") is not None
-        }
-        for domain, models in MODEL_REGISTRY.items()
-    }
+    response = {}
+
+    for domain, models in MODEL_REGISTRY.items():
+
+        response[domain] = {}
+
+        for model_name, model_info in models.items():
+
+            if model_info.get("model") is not None:
+                response[domain][model_name] = {
+                    "status": "ready"
+                }
+
+    return response
 # -----------------------------
 # METADATA MODELO
 # -----------------------------
