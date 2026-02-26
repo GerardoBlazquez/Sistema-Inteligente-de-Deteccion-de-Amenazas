@@ -8,21 +8,24 @@ from fastapi.responses import Response
 
 app = FastAPI(title="Threat Detection API")
 
-# ✅ CORS COMPLETO - ARREGLADO
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:4321", 
+        "http://localhost:4321",
         "http://127.0.0.1:4321",
         "http://localhost:3000",
         "*"
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # ← OPTIONS crítico
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
-# Métricas Prometheus
+# -----------------------------
+# MÉTRICAS PROMETHEUS
+# -----------------------------
+
 REQUEST_COUNT = Counter(
     "prediction_requests_total",
     "Total prediction requests",
@@ -44,11 +47,19 @@ INFERENCE_TIME = Histogram(
     "Time spent on inference"
 )
 
+# -----------------------------
+# MODELO REQUEST
+# -----------------------------
+
 class PredictionRequest(BaseModel):
     domain: str
     model_name: str
     mode: str
     data: dict
+
+# -----------------------------
+# HEALTH CHECK
+# -----------------------------
 
 @app.get("/health")
 def health():
@@ -61,13 +72,28 @@ def health():
         }
     }
 
+# -----------------------------
+# LISTA MODELOS
+# -----------------------------
+
 @app.get("/models")
 def list_models():
     response = {}
     for domain, models in MODEL_REGISTRY.items():
-        available_models = {name: bool(model.get("model")) for name, model in models.items()}
-        response[domain] = {name: status for name, status in available_models.items() if status}
+        available_models = {
+            name: bool(model.get("model"))
+            for name, model in models.items()
+        }
+        response[domain] = {
+            name: status
+            for name, status in available_models.items()
+            if status
+        }
     return response
+
+# -----------------------------
+# METADATA MODELO
+# -----------------------------
 
 @app.get("/models/{domain}")
 def model_metadata(domain: str):
@@ -75,21 +101,31 @@ def model_metadata(domain: str):
         raise HTTPException(status_code=404, detail="Domain not found")
 
     response = {}
+
     for model_name, model_info in MODEL_REGISTRY[domain].items():
         if model_info.get("model") is None:
             continue
-            
+
         response[model_name] = {
             "threshold_f1": model_info["threshold_f1"],
             "threshold_cost": model_info["threshold_cost"],
             "features": model_info["features"],
             "status": "ready"
         }
+
     return response
+
+# -----------------------------
+# PREDICCIÓN
+# -----------------------------
 
 @app.post("/predict")
 def predict(request: PredictionRequest):
-    REQUEST_COUNT.labels(domain=request.domain, model=request.model_name).inc()
+
+    REQUEST_COUNT.labels(
+        domain=request.domain,
+        model=request.model_name
+    ).inc()
 
     # Validación dominio
     if request.domain not in MODEL_REGISTRY:
@@ -101,10 +137,10 @@ def predict(request: PredictionRequest):
 
     package = MODEL_REGISTRY[request.domain][request.model_name]
     model = package["model"]
-    
+
     if model is None:
         raise HTTPException(
-            status_code=503, 
+            status_code=503,
             detail=f"Model '{request.model_name}' for domain '{request.domain}' not available."
         )
 
@@ -116,37 +152,48 @@ def predict(request: PredictionRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid data: {str(e)}")
 
-    # Escalado para fraude (Time y Amount)
-    if "scaler" in package and package["scaler"] is not None:
+    # Escalado (solo fraude)
+    if "scaler" in package and package.get("scaler") is not None:
         try:
             scaler = package["scaler"]
             time_idx = features.index("Time")
             amount_idx = features.index("Amount")
-            scaled_values = scaler.transform([[X_array[0][time_idx], X_array[0][amount_idx]]])
+
+            scaled_values = scaler.transform(
+                [[X_array[0][time_idx], X_array[0][amount_idx]]]
+            )
+
             X_array[0][time_idx] = scaled_values[0][0]
             X_array[0][amount_idx] = scaled_values[0][1]
+
         except Exception as e:
-            print(f"Scaler error: {e}")  # Log pero continúa
+            print(f"Scaler error: {e}")
 
     X = X_array
 
     with INFERENCE_TIME.time():
+
         if hasattr(model, "predict_proba"):
-            # Modelos supervisados
+            # Supervisados
             score = model.predict_proba(X)[0][1]
-            threshold = package["threshold_f1"] if request.mode == "f1" else package["threshold_cost"]
+            threshold = (
+                package["threshold_f1"]
+                if request.mode == "f1"
+                else package["threshold_cost"]
+            )
             prediction = int(score >= threshold)
+
         else:
-            # Modelos no supervisados
+            # No supervisados
             score = -model.decision_function(X)[0]
-            threshold = 0
+            threshold = 0.0
             prediction = int(score >= threshold)
 
     # Métricas
     if prediction == 1:
         if request.domain == "fraud":
             FRAUD_DETECTED.inc()
-        elif request.domain == "bot":
+        elif request.domain == "bots":  # 🔥 corregido
             BOT_DETECTED.inc()
 
     return {
@@ -159,11 +206,18 @@ def predict(request: PredictionRequest):
         "model_status": "ready"
     }
 
+# -----------------------------
+# PROMETHEUS
+# -----------------------------
+
 @app.get("/metrics")
 def metrics():
-    return generate_latest()
+    return Response(generate_latest(), media_type="text/plain")
+
+# -----------------------------
+# RUN LOCAL
+# -----------------------------
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
