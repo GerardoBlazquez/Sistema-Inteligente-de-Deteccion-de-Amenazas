@@ -1,7 +1,5 @@
 import joblib
 import os
-import numpy as np
-from sklearn.preprocessing import StandardScaler
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -18,58 +16,92 @@ BOT_FEATURES = [
     "unique_resources"
 ]
 
+
 def load_model_safely(model_path):
-    """Carga modelo con fallback seguro"""
-    if os.path.exists(model_path):
-        return joblib.load(model_path)
-    print(f"⚠️  Modelo no encontrado: {model_path}. Usando fallback.")
-    return None
+    """
+    Carga modelo con fallback seguro.
+    Si el .pkl contiene un dict con clave 'model',
+    devuelve directamente el modelo interno.
+    """
+    if not os.path.exists(model_path):
+        print(f"⚠️ Modelo no encontrado: {model_path}")
+        return None
+
+    try:
+        loaded = joblib.load(model_path)
+
+        # 🔥 Si el PKL contiene un dict con clave 'model'
+        if isinstance(loaded, dict) and "model" in loaded:
+            print(f"✅ Modelo cargado (extraído de dict): {model_path}")
+            return loaded["model"]
+
+        print(f"✅ Modelo cargado correctamente: {model_path}")
+        return loaded
+
+    except Exception as e:
+        print(f"❌ Error cargando modelo {model_path}: {e}")
+        return None
+
 
 MODEL_REGISTRY = {
 
     "fraud": {
 
         "random_forest": {
-            "model": load_model_safely(os.path.join(BASE_DIR, "models", "fraud", "fraud_random_forest.pkl")),
-            "scaler": load_model_safely(os.path.join(BASE_DIR, "models", "fraud", "fraud_scaler.pkl")),
+            "model": load_model_safely(
+                os.path.join(BASE_DIR, "models", "fraud", "fraud_random_forest.pkl")
+            ),
+            "scaler": load_model_safely(
+                os.path.join(BASE_DIR, "models", "fraud", "fraud_scaler.pkl")
+            ),
             "features": FRAUD_FEATURES,
             "threshold_f1": 0.37,
             "threshold_cost": 0.15
         },
 
         "isolation_forest": {
-            "model": load_model_safely(os.path.join(BASE_DIR, "models", "fraud", "fraud_isolation_forest.pkl")),
+            "model": load_model_safely(
+                os.path.join(BASE_DIR, "models", "fraud", "fraud_isolation_forest.pkl")
+            ),
             "features": FRAUD_FEATURES,
             "threshold_f1": 0.0,
             "threshold_cost": 0.0
         },
 
         "lof": {
-            "model": load_model_safely(os.path.join(BASE_DIR, "models", "fraud", "fraud_lof.pkl")),
+            "model": load_model_safely(
+                os.path.join(BASE_DIR, "models", "fraud", "fraud_lof.pkl")
+            ),
             "features": FRAUD_FEATURES,
             "threshold_f1": 0.0,
             "threshold_cost": 0.0
         },
 
         "ocsvm": {
-            "model": load_model_safely(os.path.join(BASE_DIR, "models", "fraud", "fraud_ocsvm.pkl")),
+            "model": load_model_safely(
+                os.path.join(BASE_DIR, "models", "fraud", "fraud_ocsvm.pkl")
+            ),
             "features": FRAUD_FEATURES,
             "threshold_f1": 0.0,
             "threshold_cost": 0.0
         }
     },
 
-    "bots": {  # 🔥 CORREGIDO (antes era "bot")
+    "bots": {
 
         "random_forest": {
-            "model": load_model_safely(os.path.join(BASE_DIR, "models", "bots", "random_forest.pkl")),
+            "model": load_model_safely(
+                os.path.join(BASE_DIR, "models", "bots", "random_forest.pkl")
+            ),
             "features": BOT_FEATURES,
             "threshold_f1": 0.41,
             "threshold_cost": 0.08
         },
 
         "xgboost": {
-            "model": load_model_safely(os.path.join(BASE_DIR, "models", "bots", "xgboost.pkl")),
+            "model": load_model_safely(
+                os.path.join(BASE_DIR, "models", "bots", "xgboost.pkl")
+            ),
             "features": BOT_FEATURES,
             "threshold_f1": 0.41,
             "threshold_cost": 0.08
