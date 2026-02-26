@@ -127,11 +127,15 @@ def predict(request: PredictionRequest):
         model=request.model_name
     ).inc()
 
+    # -------------------------
     # Validación dominio
+    # -------------------------
     if request.domain not in MODEL_REGISTRY:
         raise HTTPException(status_code=400, detail="Invalid domain")
 
+    # -------------------------
     # Validación modelo
+    # -------------------------
     if request.model_name not in MODEL_REGISTRY[request.domain]:
         raise HTTPException(status_code=400, detail="Invalid model")
 
@@ -146,59 +150,114 @@ def predict(request: PredictionRequest):
 
     features = package["features"]
 
+    # -------------------------
     # Construcción vector ordenado
+    # -------------------------
     try:
         X_array = np.array([[request.data.get(f, 0) for f in features]])
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid data: {str(e)}")
 
+    # -------------------------
     # Escalado (solo fraude)
+    # -------------------------
     if "scaler" in package and package.get("scaler") is not None:
         try:
             scaler = package["scaler"]
-            time_idx = features.index("Time")
-            amount_idx = features.index("Amount")
 
-            scaled_values = scaler.transform(
-                [[X_array[0][time_idx], X_array[0][amount_idx]]]
-            )
+            if "Time" in features and "Amount" in features:
+                time_idx = features.index("Time")
+                amount_idx = features.index("Amount")
 
-            X_array[0][time_idx] = scaled_values[0][0]
-            X_array[0][amount_idx] = scaled_values[0][1]
+                scaled_values = scaler.transform(
+                    [[X_array[0][time_idx], X_array[0][amount_idx]]]
+                )
+
+                X_array[0][time_idx] = scaled_values[0][0]
+                X_array[0][amount_idx] = scaled_values[0][1]
 
         except Exception as e:
             print(f"Scaler error: {e}")
 
     X = X_array
 
+    # -------------------------
+    # INFERENCIA + MÉTRICA TIEMPO
+    # -------------------------
     with INFERENCE_TIME.time():
 
+        # -------------------------
+        # MODELOS SUPERVISADOS
+        # -------------------------
         if hasattr(model, "predict_proba"):
-            # Supervisados
-            score = model.predict_proba(X)[0][1]
+
+            proba = model.predict_proba(X)
+
+            if len(proba.shape) == 2:
+
+                if proba.shape[1] == 2:
+                    score = float(proba[0][1])
+
+                elif proba.shape[1] == 1:
+                    score = float(proba[0][0])
+
+                else:
+                    raise Exception(f"Invalid predict_proba shape: {proba.shape}")
+
+            else:
+                score = float(proba[0])
+
             threshold = (
                 package["threshold_f1"]
                 if request.mode == "f1"
                 else package["threshold_cost"]
             )
+
             prediction = int(score >= threshold)
 
-        else:
-            # No supervisados
-            score = -model.decision_function(X)[0]
+        # -------------------------
+        # MODELOS NO SUPERVISADOS
+        # -------------------------
+        elif hasattr(model, "decision_function"):
+
+            score = float(-model.decision_function(X)[0])
             threshold = 0.0
             prediction = int(score >= threshold)
 
-    # Métricas
+        # -------------------------
+        # FALLBACK
+        # -------------------------
+        elif hasattr(model, "predict"):
+
+            prediction = int(model.predict(X)[0])
+            score = float(prediction)
+
+            threshold = (
+                package.get("threshold_f1", 0.5)
+                if request.mode == "f1"
+                else package.get("threshold_cost", 0.5)
+            )
+
+        else:
+            raise Exception("Model has no valid prediction method")
+
+    # -------------------------
+    # Métricas detección
+    # -------------------------
     if prediction == 1:
+
         if request.domain == "fraud":
             FRAUD_DETECTED.inc()
-        elif request.domain == "bots":  # 🔥 corregido
+
+        elif request.domain == "bots":
             BOT_DETECTED.inc()
 
+    # -------------------------
+    # Respuesta
+    # -------------------------
     return {
         "score": float(score),
-        "classification": prediction,
+        "classification": int(prediction),
         "threshold_used": float(threshold),
         "domain": request.domain,
         "model": request.model_name,
