@@ -78,19 +78,23 @@ def health():
 
 @app.get("/models")
 def list_models():
+
     response = {}
     for domain, models in MODEL_REGISTRY.items():
-        available_models = {
-            name: bool(model.get("model"))
-            for name, model in models.items()
-        }
-        response[domain] = {
-            name: status
-            for name, status in available_models.items()
-            if status
-        }
-    return response
+        available_models = []
 
+        for name, model_info in models.items():
+            if model_info.get("model") is not None:
+                available_models.append({
+                    "name": name,
+                    "threshold_f1": model_info.get("threshold_f1"),
+                    "threshold_cost": model_info.get("threshold_cost"),
+                    "status": "ready"
+                })
+
+        response[domain] = available_models
+
+    return response
 # -----------------------------
 # METADATA MODELO
 # -----------------------------
