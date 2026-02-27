@@ -265,6 +265,7 @@ def predict(request: PredictionRequest):
     # -------------------------
     return {
         "score": float(score),
+        "raw_score": float(raw_score),
         "classification": int(prediction),
         "threshold_used": float(threshold),
         "domain": request.domain,
