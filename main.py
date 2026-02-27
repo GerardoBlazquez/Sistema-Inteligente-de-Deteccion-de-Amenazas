@@ -186,6 +186,7 @@ def predict(request: PredictionRequest):
     # -------------------------
     # INFERENCIA + MÉTRICA TIEMPO
     # -------------------------
+    raw_score = None
     with INFERENCE_TIME.time():
 
         # -------------------------
@@ -217,7 +218,7 @@ def predict(request: PredictionRequest):
 
             prediction = int(score >= threshold)
 
-                # -------------------------
+        # -------------------------
         # MODELOS NO SUPERVISADOS
         # -------------------------
         elif hasattr(model, "decision_function"):
@@ -265,7 +266,7 @@ def predict(request: PredictionRequest):
     # -------------------------
     return {
         "score": float(score),
-        "raw_score": float(raw_score),
+        "raw_score": float(raw_score) if raw_score is not None else None,
         "classification": int(prediction),
         "threshold_used": float(threshold),
         "domain": request.domain,
