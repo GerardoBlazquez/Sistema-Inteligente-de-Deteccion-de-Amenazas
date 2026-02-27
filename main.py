@@ -217,13 +217,19 @@ def predict(request: PredictionRequest):
 
             prediction = int(score >= threshold)
 
-        # -------------------------
+                # -------------------------
         # MODELOS NO SUPERVISADOS
         # -------------------------
         elif hasattr(model, "decision_function"):
 
-            score = float(-model.decision_function(X)[0])
-            threshold = 0.0
+            raw_score = float(model.decision_function(X)[0])
+
+            normalized = 1 / (1 + np.exp(-raw_score))
+
+            # 🔥 Invertimos para que 1 = amenaza
+            score = 1 - normalized
+
+            threshold = 0.5
             prediction = int(score >= threshold)
 
         # -------------------------
