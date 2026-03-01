@@ -229,8 +229,7 @@ def predict(request: PredictionRequest):
                 score = float(proba[0])
 
             if request.mode == "auto_cost":
-
-                # Threshold dinámico basado en coste
+                # Threshold Bayesiano correcto
                 threshold = COSTE_REVISION / COSTE_FRAUDE_REAL
 
             else:
@@ -308,21 +307,23 @@ def predict(request: PredictionRequest):
     # SIMULACIÓN ECONÓMICA
     # -------------------------
 
-    # Escenario SIN modelo (baseline)
+    # Threshold económicamente óptimo (Bayesiano)
+    optimal_threshold = COSTE_REVISION / COSTE_FRAUDE_REAL
+
+    # Esperanza SIN modelo (baseline poblacional coherente)
     expected_loss_without_model = BASE_FRAUD_RATE * COSTE_FRAUDE_REAL
 
-    # Escenario CON modelo (esperanza condicional)
-    if prediction == 1:
-        # Si lo bloquea → pagamos revisión
-        expected_loss_with_model = COSTE_REVISION
-    else:
-        # Si no lo bloquea → pérdida esperada
-        expected_loss_with_model = float(score) * COSTE_FRAUDE_REAL
+    # Esperanza CON modelo (teoría de decisión)
+    # Si bloqueamos → pagamos revisión
+    # Si no bloqueamos → asumimos riesgo ponderado por probabilidad
+    expected_loss_with_model = (
+        score * COSTE_FRAUDE_REAL * (1 - prediction)
+        + prediction * COSTE_REVISION
+    )
 
-    # ROI estimado
+    # ROI
     roi = expected_loss_without_model - expected_loss_with_model
 
-    # Evitar división por cero
     roi_percentage = (
         (roi / expected_loss_without_model) * 100
         if expected_loss_without_model > 0
