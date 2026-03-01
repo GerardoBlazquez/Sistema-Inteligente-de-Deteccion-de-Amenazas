@@ -23,6 +23,16 @@ app.add_middleware(
 )
 
 # -----------------------------
+# CONFIGURACIÓN ECONÓMICA
+# -----------------------------
+
+COSTE_FRAUDE_REAL = 250.0
+COSTE_REVISION = 5.0
+
+# Probabilidad base histórica (ajústala a tu dataset real)
+BASE_FRAUD_RATE = 0.0017   # ejemplo 0.17%
+
+# -----------------------------
 # MÉTRICAS PROMETHEUS
 # -----------------------------
 
@@ -210,11 +220,17 @@ def predict(request: PredictionRequest):
             else:
                 score = float(proba[0])
 
-            threshold = (
-                package["threshold_f1"]
-                if request.mode == "f1"
-                else package["threshold_cost"]
-            )
+            if request.mode == "auto_cost":
+
+                # Threshold dinámico basado en coste
+                threshold = COSTE_REVISION / COSTE_FRAUDE_REAL
+
+            else:
+                threshold = (
+                    package["threshold_f1"]
+                    if request.mode == "f1"
+                    else package["threshold_cost"]
+                )
 
             prediction = int(score >= threshold)
 
@@ -284,17 +300,26 @@ def predict(request: PredictionRequest):
     # SIMULACIÓN ECONÓMICA
     # -------------------------
 
-    # Costes configurables
-    COSTE_FRAUDE_REAL = 250.0        # pérdida media por fraude no detectado
-    COSTE_FALSO_POSITIVO = 5.0       # coste revisión manual
-    COSTE_FALSO_NEGATIVO = 250.0     # fraude no detectado
+    # Escenario SIN modelo (baseline)
+    expected_loss_without_model = BASE_FRAUD_RATE * COSTE_FRAUDE_REAL
 
+    # Escenario CON modelo (esperanza condicional)
     if prediction == 1:
-        # Marcado como amenaza → coste revisión
-        economic_impact = COSTE_FALSO_POSITIVO
+        # Si lo bloquea → pagamos revisión
+        expected_loss_with_model = COSTE_REVISION
     else:
-        # No detectado → pérdida esperada según probabilidad
-        economic_impact = float(score) * COSTE_FRAUDE_REAL
+        # Si no lo bloquea → pérdida esperada
+        expected_loss_with_model = float(score) * COSTE_FRAUDE_REAL
+
+    # ROI estimado
+    roi = expected_loss_without_model - expected_loss_with_model
+
+    # Evitar división por cero
+    roi_percentage = (
+        (roi / expected_loss_without_model) * 100
+        if expected_loss_without_model > 0
+        else 0
+    )
 
     # -------------------------
     # Respuesta
@@ -310,9 +335,13 @@ def predict(request: PredictionRequest):
         "model_status": "ready",
         "features": features,
         "feature_importance": feature_importance,
-        "economic_impact": float(economic_impact)
+        "economic_analysis": {
+            "expected_loss_without_model": float(expected_loss_without_model),
+            "expected_loss_with_model": float(expected_loss_with_model),
+            "roi_absolute": float(roi),
+            "roi_percentage": float(roi_percentage)
+        }
     }
-
 # -----------------------------
 # PROMETHEUS
 # -----------------------------
