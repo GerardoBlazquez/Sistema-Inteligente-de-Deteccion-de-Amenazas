@@ -68,6 +68,14 @@ class PredictionRequest(BaseModel):
     data: dict
 
 # -----------------------------
+# BATCH ECONOMIC REQUEST
+# -----------------------------
+
+class BatchEconomicRequest(BaseModel):
+    scores: list[float]
+    true_labels: list[int]  # 0 o 1
+
+# -----------------------------
 # HEALTH CHECK
 # -----------------------------
 
@@ -341,6 +349,67 @@ def predict(request: PredictionRequest):
             "roi_absolute": float(roi),
             "roi_percentage": float(roi_percentage)
         }
+    }
+
+
+# -----------------------------
+# ECONOMIC BATCH ANALYSIS
+# -----------------------------
+
+@app.post("/economic-analysis/batch")
+def economic_batch_analysis(request: BatchEconomicRequest):
+
+    if len(request.scores) != len(request.true_labels):
+        raise HTTPException(status_code=400, detail="Scores and labels length mismatch")
+
+    scores = np.array(request.scores)
+    labels = np.array(request.true_labels)
+
+    thresholds = np.linspace(0, 1, 100)
+
+    results = []
+
+    for t in thresholds:
+
+        predictions = (scores >= t).astype(int)
+
+        tp = np.sum((predictions == 1) & (labels == 1))
+        fp = np.sum((predictions == 1) & (labels == 0))
+        fn = np.sum((predictions == 0) & (labels == 1))
+        tn = np.sum((predictions == 0) & (labels == 0))
+
+        cost = (
+            fn * COSTE_FRAUDE_REAL +
+            fp * COSTE_REVISION
+        )
+
+        results.append({
+            "threshold": float(t),
+            "cost": float(cost),
+            "tp": int(tp),
+            "fp": int(fp),
+            "fn": int(fn),
+            "tn": int(tn)
+        })
+
+    # Mejor threshold económico
+    best = min(results, key=lambda x: x["cost"])
+
+    # Baseline sin modelo (no bloquear nada)
+    baseline_cost = np.sum(labels == 1) * COSTE_FRAUDE_REAL
+
+    profit_curve = [
+        baseline_cost - r["cost"]
+        for r in results
+    ]
+
+    return {
+        "baseline_cost": float(baseline_cost),
+        "best_threshold": best["threshold"],
+        "best_cost": best["cost"],
+        "roi_vs_baseline": float(baseline_cost - best["cost"]),
+        "cost_curve": results,
+        "profit_curve": profit_curve
     }
 # -----------------------------
 # PROMETHEUS
