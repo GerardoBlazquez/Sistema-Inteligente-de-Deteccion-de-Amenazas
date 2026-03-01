@@ -262,6 +262,41 @@ def predict(request: PredictionRequest):
             BOT_DETECTED.inc()
 
     # -------------------------
+    # FEATURE IMPORTANCE
+    # -------------------------
+
+    feature_importance = None
+
+    # Modelos tipo RandomForest, XGBoost
+    if hasattr(model, "feature_importances_"):
+        feature_importance = model.feature_importances_.tolist()
+
+    # Modelos lineales (LogisticRegression, etc.)
+    elif hasattr(model, "coef_"):
+        coef = model.coef_
+
+        if hasattr(coef, "__iter__"):
+            feature_importance = np.abs(coef[0]).tolist()
+        else:
+            feature_importance = [abs(float(coef))]
+
+    # -------------------------
+    # SIMULACIÓN ECONÓMICA
+    # -------------------------
+
+    # Costes configurables
+    COSTE_FRAUDE_REAL = 250.0        # pérdida media por fraude no detectado
+    COSTE_FALSO_POSITIVO = 5.0       # coste revisión manual
+    COSTE_FALSO_NEGATIVO = 250.0     # fraude no detectado
+
+    if prediction == 1:
+        # Marcado como amenaza → coste revisión
+        economic_impact = COSTE_FALSO_POSITIVO
+    else:
+        # No detectado → pérdida esperada según probabilidad
+        economic_impact = float(score) * COSTE_FRAUDE_REAL
+
+    # -------------------------
     # Respuesta
     # -------------------------
     return {
@@ -272,7 +307,10 @@ def predict(request: PredictionRequest):
         "domain": request.domain,
         "model": request.model_name,
         "mode": request.mode,
-        "model_status": "ready"
+        "model_status": "ready",
+        "features": features,
+        "feature_importance": feature_importance,
+        "economic_impact": float(economic_impact)
     }
 
 # -----------------------------
