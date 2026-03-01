@@ -207,6 +207,7 @@ def predict(request: PredictionRequest):
         "domain": request.domain,
         "model": request.model_name,
         "mode": request.mode,
+        "features": features,
         "feature_importance": feature_importance
     }
 
