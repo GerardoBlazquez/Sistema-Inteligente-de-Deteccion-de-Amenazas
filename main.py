@@ -93,11 +93,17 @@ def health():
 @app.get("/models")
 def list_models():
     response = {}
+
     for domain, models in MODEL_REGISTRY.items():
         response[domain] = {}
+
         for model_name, model_info in models.items():
             if model_info.get("model") is not None:
-                response[domain][model_name] = {"status": "ready"}
+                response[domain][model_name] = {
+                    "status": "ready",
+                    "features": model_info.get("features", [])
+                }
+
     return response
 
 # -----------------------------
