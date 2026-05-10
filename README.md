@@ -5,27 +5,27 @@ Sistema de detección de amenazas basado en Machine Learning para dos dominios:
 - **Fraude bancario**
 - **Detección de bots web**
 
-El proyecto combina modelado supervisado y no supervisado, optimización de umbral, análisis económico, persistencia de modelos y exposición mediante API REST. En el repositorio, el backend final está implementado con **FastAPI** y se ejecuta con **Uvicorn**; además, se incluye despliegue preparado para **Render**. fileciteturn328542view0turn211881view3turn170577view1
+El proyecto combina modelado supervisado y no supervisado, optimización de umbral, análisis económico, persistencia de modelos y exposición mediante API REST. En el repositorio, el backend final está implementado con **FastAPI** y se ejecuta con **Uvicorn**; además, se incluye despliegue preparado para **Render**.
 
 ## Resumen del proyecto
 
-La arquitectura separa claramente el entrenamiento de los modelos y la inferencia en producción. El sistema permite seleccionar el dominio, el modelo y el modo de decisión, devolviendo una respuesta en JSON con la probabilidad, la clasificación final, el umbral usado y la importancia de características cuando está disponible. fileciteturn328542view0turn211881view4
+La arquitectura separa claramente el entrenamiento de los modelos y la inferencia en producción. El sistema permite seleccionar el dominio, el modelo y el modo de decisión, devolviendo una respuesta en JSON con la probabilidad, la clasificación final, el umbral usado y la importancia de características cuando está disponible.
 
 ### Dominios incluidos
 
-- **Fraude financiero**: modelo supervisado y modelos de anomalías para transacciones con un conjunto de variables tipo `Time`, `V1`...`V28`, `Amount`. fileciteturn451354view0
-- **Bots web**: modelo basado en comportamiento agregado por IP con variables `requests_per_ip`, `avg_time_diff`, `error_rate` y `unique_resources`. fileciteturn451354view0turn2file8
+- **Fraude financiero**: modelo supervisado y modelos de anomalías para transacciones con un conjunto de variables tipo `Time`, `V1`...`V28`, `Amount`. 
+- **Bots web**: modelo basado en comportamiento agregado por IP con variables `requests_per_ip`, `avg_time_diff`, `error_rate` y `unique_resources`.
 
 ## Características principales
 
-- API REST con endpoints para salud, listado de modelos, predicción, métricas y análisis económico por lotes. fileciteturn328542view0turn211881view4
-- Registro centralizado de modelos por dominio y por algoritmo. fileciteturn451354view0
+- API REST con endpoints para salud, listado de modelos, predicción, métricas y análisis económico por lotes. 
+- Registro centralizado de modelos por dominio y por algoritmo.
 - Umbrales configurables por modo:
   - **Modo `f1`**: equilibrio entre precisión y recall.
   - **Modo `auto_cost`** / **`cost`**: optimización orientada al coste.
-  - **Modo `balanced`** o equivalente, según el modelo cargado. fileciteturn211881view4turn451354view0
-- Métricas de observabilidad con **Prometheus**. fileciteturn211881view2turn170577view0
-- Preparado para despliegue cloud mediante `render.yaml`. fileciteturn170577view1
+  - **Modo `balanced`** o equivalente, según el modelo cargado. 
+- Métricas de observabilidad con **Prometheus**.
+- Preparado para despliegue cloud mediante `render.yaml`.
 
 ## Modelos disponibles
 
@@ -33,17 +33,17 @@ La arquitectura separa claramente el entrenamiento de los modelos y la inferenci
 - `random_forest`
 - `isolation_forest`
 - `lof`
-- `ocsvm` fileciteturn451354view0
+- `ocsvm` 
 
 ### Bots
 - `random_forest`
-- `xgboost` fileciteturn451354view0turn2file0
+- `xgboost` 
 
 ## Resultados destacados del TFG
 
-En la memoria del proyecto, el modelo supervisado de fraude con **Random Forest optimizado** alcanzó un **F1-score de 0.79** y un **ROC-AUC de 0.97**, reduciendo aproximadamente un **49%** del coste estimado frente al enfoque no supervisado optimizado. fileciteturn2file11turn2file15
+En la memoria del proyecto, el modelo supervisado de fraude con **Random Forest optimizado** alcanzó un **F1-score de 0.79** y un **ROC-AUC de 0.97**, reduciendo aproximadamente un **49%** del coste estimado frente al enfoque no supervisado optimizado. 
 
-Para bots, el modelo final seleccionado fue **XGBoost optimizado**, con un escenario equilibrado alrededor de **threshold 0.41** y otro modo de seguridad alrededor de **0.08**; el estudio concluye que XGBoost ofrece mejor separación probabilística y buen equilibrio entre precisión y recall. fileciteturn2file1turn2file9turn2file16
+Para bots, el modelo final seleccionado fue **XGBoost optimizado**, con un escenario equilibrado alrededor de **threshold 0.41** y otro modo de seguridad alrededor de **0.08**; el estudio concluye que XGBoost ofrece mejor separación probabilística y buen equilibrio entre precisión y recall. 
 
 ## Estructura del repositorio
 
@@ -67,7 +67,7 @@ Para bots, el modelo final seleccionado fue **XGBoost optimizado**, con un escen
 └── README.md
 ```
 
-Los nombres anteriores reflejan la organización que usa `registry.py` para cargar los modelos de forma segura desde `models/` y, en el caso de fraude, también el escalador desde `scalers/`. fileciteturn451354view0
+Los nombres anteriores reflejan la organización que usa `registry.py` para cargar los modelos de forma segura desde `models/` y, en el caso de fraude, también el escalador desde `scalers/`.
 
 ## Requisitos
 
@@ -81,7 +81,7 @@ El proyecto usa Python y, según `requirements.txt`, depende de:
 - `scikit-learn`
 - `xgboost`
 - `joblib`
-- `prometheus-client` fileciteturn170577view0
+- `prometheus-client` 
 
 ## Instalación local
 
@@ -129,7 +129,7 @@ python main.py
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-El propio `main.py` arranca Uvicorn en el puerto `8000` cuando se ejecuta como script, y `render.yaml` usa `uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1`. fileciteturn211881view3turn170577view1
+El propio `main.py` arranca Uvicorn en el puerto `8000` cuando se ejecuta como script, y `render.yaml` usa `uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1`. 
 
 ## API REST
 
@@ -181,44 +181,44 @@ Realiza una predicción sobre el dominio y modelo seleccionados.
 }
 ```
 
-El endpoint valida el dominio y el modelo, construye el vector de entrada en el orden esperado y aplica el umbral correspondiente antes de devolver la respuesta. fileciteturn211881view4turn328542view0
+El endpoint valida el dominio y el modelo, construye el vector de entrada en el orden esperado y aplica el umbral correspondiente antes de devolver la respuesta.
 
 ### `POST /economic-analysis/batch`
 
-Permite evaluar lotes de scores y etiquetas reales para calcular el mejor umbral por coste y el ROI frente a una línea base. fileciteturn211881view4
+Permite evaluar lotes de scores y etiquetas reales para calcular el mejor umbral por coste y el ROI frente a una línea base. 
 
 ### `GET /metrics`
 
-Expone métricas en formato Prometheus para observabilidad. fileciteturn211881view3
+Expone métricas en formato Prometheus para observabilidad. 
 
 ## Formatos de entrada esperados
 
 ### Fraude
 El modelo espera las variables:
 
-`Time`, `V1`...`V28`, `Amount`. fileciteturn451354view0
+`Time`, `V1`...`V28`, `Amount`. 
 
 ### Bots
 El modelo espera:
 
-`requests_per_ip`, `avg_time_diff`, `error_rate`, `unique_resources`. fileciteturn451354view0turn2file8
+`requests_per_ip`, `avg_time_diff`, `error_rate`, `unique_resources`. 
 
 ## Despliegue en Render
 
-El proyecto incluye `render.yaml` para despliegue como web service en Render, con instalación de dependencias y arranque mediante Uvicorn. fileciteturn170577view1
+El proyecto incluye `render.yaml` para despliegue como web service en Render, con instalación de dependencias y arranque mediante Uvicorn.
 
 ## Dataset y entrenamiento
 
 La memoria del TFG documenta dos pipelines de entrenamiento:
 
 - **Fraude bancario**: `Credit Card Fraud Detection`, con gran desbalance de clases.
-- **Bots web**: logs en JSON transformados a un dataset agregado por IP. fileciteturn2file17turn2file12
+- **Bots web**: logs en JSON transformados a un dataset agregado por IP. 
 
-El entrenamiento y la experimentación se realizaron en Google Colab, separando claramente la fase offline de entrenamiento y la fase online de inferencia. fileciteturn2file17
+El entrenamiento y la experimentación se realizaron en Google Colab, separando claramente la fase offline de entrenamiento y la fase online de inferencia. 
 
 ## Licencia
 
-MIT. fileciteturn903588view0
+MIT. 
 
 ## Autor
 
