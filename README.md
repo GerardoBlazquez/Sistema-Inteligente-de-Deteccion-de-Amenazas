@@ -131,6 +131,70 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 El propio `main.py` arranca Uvicorn en el puerto `8000` cuando se ejecuta como script, y `render.yaml` usa `uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1`. 
 
+
+## Flujo
+```mermaid
+flowchart TD
+    INICIO(["`**Inicio del Servicio**`"])
+    LOAD_MODELS(["Cargar modelos serializados (.joblib/.pkl)"])
+    START_FASTAPI(["Arrancar Servidor FastAPI (Backend)"])
+    FRONTEND_UI(["Interfaz Web (Astro + React)"])
+
+    INICIO --> LOAD_MODELS
+    LOAD_MODELS --> START_FASTAPI
+    START_FASTAPI --> FRONTEND_UI
+
+    subgraph Proceso_Inferencia["Flujo de Detección en Tiempo Real"]
+        %% Entrada de datos
+        UI_INPUT(["Usuario introduce datos en Dashboard"])
+        SELECT_DOMAIN{"¿Dominio?"}
+        
+        FRONTEND_UI --> UI_INPUT
+        UI_INPUT --> SELECT_DOMAIN
+
+        %% Rama Fraude
+        SELECT_DOMAIN -->|Fraude| FE_FRAUD(["Preprocesamiento: Normalización y PCA"])
+        FE_FRAUD --> MODEL_FRAUD(["Inferencia: Random Forest / Isolation Forest"])
+        
+        %% Rama Bots
+        SELECT_DOMAIN -->|Bots| FE_BOTS(["Ingeniería de Características: Agregación por IP"])
+        FE_BOTS --> MODEL_BOTS(["Inferencia: XGBoost / Random Forest"])
+
+        %% Unión de flujos
+        MODEL_FRAUD --> CALC_PROBA(["Cálculo de Probabilidad (Score)"])
+        MODEL_BOTS --> CALC_PROBA
+        
+        CALC_PROBA --> OPTIMIZADOR{"¿Modo de Umbral?"}
+        
+        OPTIMIZADOR -->|Optimizado F1| THR_F1(["Aplicar Umbral de Máximo Equilibrio"])
+        OPTIMIZADOR -->|Optimizado Coste| THR_COST(["Aplicar Umbral de Seguridad (Minimizar FN)"])
+        
+        THR_F1 --> ECON_ANALYSIS(["Análisis de Impacto Económico"])
+        THR_COST --> ECON_ANALYSIS
+        
+        ECON_ANALYSIS --> RETURN_JSON(["`**Retornar Respuesta (JSON)**`"])
+    end
+
+    subgraph Visualizacion["Capa de Presentación"]
+        RETURN_JSON --> DISPLAY_GAUGE(["Visualizar Medidor de Riesgo (Risk Gauge)"])
+        DISPLAY_GAUGE --> DISPLAY_METRICS(["Mostrar Gráficas de Historial y Distribución"])
+        DISPLAY_METRICS --> INTERPRET_SHAP(["Explicabilidad: Valores SHAP (Interpretabilidad)"])
+    end
+
+%% Estilos
+classDef titulo fill:#4a4a4a,color:#ffffff,stroke:none;
+classDef model fill:#f7efb3,color:#1f1f1f,stroke:#d4af37;
+classDef backend fill:#b8dbb8,color:#1f1f1f;
+classDef frontend fill:#a3c1f7,color:#1f1f1f;
+classDef decision fill:#d9787a,color:#ffffff;
+
+style INICIO fill:#a3c1f7,color:#1f1f1f
+style START_FASTAPI fill:#b8dbb8,color:#1f1f1f
+style RETURN_JSON fill:#688654,color:#ffffff
+style Proceso_Inferencia fill:#f9f9f9,stroke:#333,stroke-dasharray: 5 5
+style Visualizacion fill:#eff6ff,stroke:#2563eb
+```
+
 ## API REST
 
 ### `GET /health`
